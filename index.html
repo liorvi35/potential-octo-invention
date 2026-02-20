@@ -12,20 +12,37 @@
       button { padding: 10px 14px; border-radius: 10px; border: 1px solid #ccc; cursor: pointer; }
       button:disabled { opacity: 0.6; cursor: not-allowed; }
       .error { color: #b00020; white-space: pre-wrap; }
-      .muted { color: #666; }
+      .muted { color: #666; white-space: pre-wrap; }
+      .hint { font-size: 0.95rem; color: #444; }
+      code { background: #f6f6f6; padding: 2px 6px; border-radius: 6px; }
+      input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 10px; }
+      label { display: block; margin: 12px 0 6px; }
     </style>
   </head>
   <body>
     <h1>Upload a PNG → get a new PNG back</h1>
+    <p class="hint">
+      This page is GitHub Pages-friendly (static). Set your backend URL below (must be HTTPS),
+      then upload a PNG and click <b>Send</b>.
+    </p>
 
     <div class="card">
+      <label for="apiBase">Backend API base URL (example: <code>https://my-api.onrender.com</code>)</label>
+      <input id="apiBase" type="text" placeholder="https://YOUR-BACKEND-DOMAIN" />
+
+      <label for="fileInput">Choose a PNG</label>
       <input id="fileInput" type="file" accept="image/png" />
-      <button id="sendBtn" disabled>Send</button>
-      <div class="muted" id="status"></div>
-      <div class="error" id="error"></div>
+
+      <div style="margin-top: 12px; display: flex; gap: 10px;">
+        <button id="sendBtn" disabled>Send</button>
+        <button id="saveBtn" disabled>Download output</button>
+      </div>
+
+      <div class="muted" id="status" style="margin-top: 10px;"></div>
+      <div class="error" id="error" style="margin-top: 10px;"></div>
     </div>
 
-    <div class="row">
+    <div class="row" style="margin-top: 20px;">
       <div class="card">
         <h3>Original</h3>
         <img id="originalImg" alt="Original preview" />
@@ -38,82 +55,155 @@
     </div>
 
     <script>
+      const apiBaseInput = document.getElementById("apiBase");
       const fileInput = document.getElementById("fileInput");
       const sendBtn = document.getElementById("sendBtn");
+      const saveBtn = document.getElementById("saveBtn");
       const originalImg = document.getElementById("originalImg");
       const outputImg = document.getElementById("outputImg");
       const statusEl = document.getElementById("status");
       const errorEl = document.getElementById("error");
 
       let selectedFile = null;
+      let outputBlobUrl = null;
 
       const setStatus = (msg) => (statusEl.textContent = msg || "");
       const setError = (msg) => (errorEl.textContent = msg || "");
 
+      const normalizeApiBase = (raw) => {
+        const s = (raw || "").trim();
+        if (!s) return "";
+        // Remove trailing slash for clean joining
+        return s.endsWith("/") ? s.slice(0, -1) : s;
+      };
+
+      const isValidHttpsUrl = (raw) => {
+        try {
+          const u = new URL(raw);
+          return u.protocol === "https:";
+        } catch {
+          return false;
+        }
+      };
+
+      const updateButtons = () => {
+        const apiBase = normalizeApiBase(apiBaseInput.value);
+        const okApi = isValidHttpsUrl(apiBase);
+        sendBtn.disabled = !(okApi && selectedFile);
+      };
+
+      apiBaseInput.addEventListener("input", () => {
+        setError("");
+        updateButtons();
+      });
+
       fileInput.addEventListener("change", () => {
         setError("");
+        setStatus("");
+        saveBtn.disabled = true;
+
+        if (outputBlobUrl) {
+          URL.revokeObjectURL(outputBlobUrl);
+          outputBlobUrl = null;
+        }
         outputImg.removeAttribute("src");
 
         const file = fileInput.files?.[0];
         if (!file) {
           selectedFile = null;
-          sendBtn.disabled = true;
           originalImg.removeAttribute("src");
+          updateButtons();
           return;
         }
 
         if (file.type !== "image/png") {
           selectedFile = null;
-          sendBtn.disabled = true;
           originalImg.removeAttribute("src");
           setError("Please choose a PNG file (image/png).");
+          updateButtons();
           return;
         }
 
         selectedFile = file;
-        sendBtn.disabled = false;
-
-        // Show original preview
         originalImg.src = URL.createObjectURL(file);
+        updateButtons();
       });
 
       sendBtn.addEventListener("click", async () => {
+        const apiBase = normalizeApiBase(apiBaseInput.value);
+
+        if (!isValidHttpsUrl(apiBase)) {
+          setError("Please enter a valid HTTPS backend URL (e.g., https://my-api.onrender.com).");
+          updateButtons();
+          return;
+        }
         if (!selectedFile) return;
 
         setError("");
         setStatus("Uploading and processing...");
         sendBtn.disabled = true;
+        saveBtn.disabled = true;
 
         try {
           const formData = new FormData();
           formData.append("file", selectedFile, selectedFile.name);
 
-          const res = await fetch("/api/process-image", {
+          const res = await fetch(`${apiBase}/api/process-image`, {
             method: "POST",
             body: formData
           });
 
           if (!res.ok) {
-            const text = await res.text().catch(() => "");
-            throw new Error(`Server error (${res.status}). ${text}`);
+            // FastAPI often returns JSON {"detail": "..."} on error
+            let msg = `Server error (${res.status}).`;
+            const ct = res.headers.get("content-type") || "";
+            if (ct.includes("application/json")) {
+              const j = await res.json().catch(() => null);
+              if (j && (j.detail || j.message)) msg += " " + (j.detail || j.message);
+            } else {
+              const t = await res.text().catch(() => "");
+              if (t) msg += " " + t;
+            }
+            throw new Error(msg);
           }
 
           const blob = await res.blob();
-
-          // Validate it looks like an image
           if (!blob.type.startsWith("image/")) {
             throw new Error(`Unexpected response type: ${blob.type}`);
           }
 
-          outputImg.src = URL.createObjectURL(blob);
+          if (outputBlobUrl) URL.revokeObjectURL(outputBlobUrl);
+          outputBlobUrl = URL.createObjectURL(blob);
+          outputImg.src = outputBlobUrl;
+
+          saveBtn.disabled = false;
           setStatus("Done.");
         } catch (err) {
           setStatus("");
           setError(err?.message || String(err));
         } finally {
-          sendBtn.disabled = false;
+          updateButtons();
         }
       });
+
+      saveBtn.addEventListener("click", () => {
+        if (!outputBlobUrl) return;
+
+        const a = document.createElement("a");
+        a.href = outputBlobUrl;
+        a.download = "processed.png";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      });
+
+      // Optional: prefill from URL like: ?api=https://my-api.onrender.com
+      const params = new URLSearchParams(location.search);
+      const apiParam = params.get("api");
+      if (apiParam) {
+        apiBaseInput.value = apiParam;
+      }
+      updateButtons();
     </script>
   </body>
 </html>
