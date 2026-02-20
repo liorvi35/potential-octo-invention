@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PNG Upload → Processed Image</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 900px; margin: 32px auto; padding: 0 16px; }
+      .row { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+      .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; width: 420px; }
+      img { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #eee; }
+      button { padding: 10px 14px; border-radius: 10px; border: 1px solid #ccc; cursor: pointer; }
+      button:disabled { opacity: 0.6; cursor: not-allowed; }
+      .error { color: #b00020; white-space: pre-wrap; }
+      .muted { color: #666; }
+    </style>
+  </head>
+  <body>
+    <h1>Upload a PNG → get a new PNG back</h1>
+
+    <div class="card">
+      <input id="fileInput" type="file" accept="image/png" />
+      <button id="sendBtn" disabled>Send</button>
+      <div class="muted" id="status"></div>
+      <div class="error" id="error"></div>
+    </div>
+
+    <div class="row">
+      <div class="card">
+        <h3>Original</h3>
+        <img id="originalImg" alt="Original preview" />
+      </div>
+
+      <div class="card">
+        <h3>Processed Output</h3>
+        <img id="outputImg" alt="Processed output" />
+      </div>
+    </div>
+
+    <script>
+      const fileInput = document.getElementById("fileInput");
+      const sendBtn = document.getElementById("sendBtn");
+      const originalImg = document.getElementById("originalImg");
+      const outputImg = document.getElementById("outputImg");
+      const statusEl = document.getElementById("status");
+      const errorEl = document.getElementById("error");
+
+      let selectedFile = null;
+
+      const setStatus = (msg) => (statusEl.textContent = msg || "");
+      const setError = (msg) => (errorEl.textContent = msg || "");
+
+      fileInput.addEventListener("change", () => {
+        setError("");
+        outputImg.removeAttribute("src");
+
+        const file = fileInput.files?.[0];
+        if (!file) {
+          selectedFile = null;
+          sendBtn.disabled = true;
+          originalImg.removeAttribute("src");
+          return;
+        }
+
+        if (file.type !== "image/png") {
+          selectedFile = null;
+          sendBtn.disabled = true;
+          originalImg.removeAttribute("src");
+          setError("Please choose a PNG file (image/png).");
+          return;
+        }
+
+        selectedFile = file;
+        sendBtn.disabled = false;
+
+        // Show original preview
+        originalImg.src = URL.createObjectURL(file);
+      });
+
+      sendBtn.addEventListener("click", async () => {
+        if (!selectedFile) return;
+
+        setError("");
+        setStatus("Uploading and processing...");
+        sendBtn.disabled = true;
+
+        try {
+          const formData = new FormData();
+          formData.append("file", selectedFile, selectedFile.name);
+
+          const res = await fetch("/api/process-image", {
+            method: "POST",
+            body: formData
+          });
+
+          if (!res.ok) {
+            const text = await res.text().catch(() => "");
+            throw new Error(`Server error (${res.status}). ${text}`);
+          }
+
+          const blob = await res.blob();
+
+          // Validate it looks like an image
+          if (!blob.type.startsWith("image/")) {
+            throw new Error(`Unexpected response type: ${blob.type}`);
+          }
+
+          outputImg.src = URL.createObjectURL(blob);
+          setStatus("Done.");
+        } catch (err) {
+          setStatus("");
+          setError(err?.message || String(err));
+        } finally {
+          sendBtn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
