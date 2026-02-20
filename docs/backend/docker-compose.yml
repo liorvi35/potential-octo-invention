@@ -1,0 +1,11 @@
+services:
+  chess-api:
+    build:
+      context: .
+      dockerfile: chess.Dockerfile
+    ports:
+      - "${HOST_PORT}:${CONTAINER_PORT}"
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "${CONTAINER_PORT}"]
+    env_file:
+      - .env
+    restart: unless-stopped
