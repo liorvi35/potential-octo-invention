@@ -3,207 +3,412 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>PNG Upload → Processed Image</title>
+    <title>Chessboard Classification — PNG Upload</title>
     <style>
-      body { font-family: system-ui, sans-serif; max-width: 900px; margin: 32px auto; padding: 0 16px; }
-      .row { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
-      .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; width: 420px; }
-      img { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #eee; }
-      button { padding: 10px 14px; border-radius: 10px; border: 1px solid #ccc; cursor: pointer; }
-      button:disabled { opacity: 0.6; cursor: not-allowed; }
-      .error { color: #b00020; white-space: pre-wrap; }
-      .muted { color: #666; white-space: pre-wrap; }
-      .hint { font-size: 0.95rem; color: #444; }
-      code { background: #f6f6f6; padding: 2px 6px; border-radius: 6px; }
-      input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 10px; }
-      label { display: block; margin: 12px 0 6px; }
+      :root {
+        --bg: #0b1020;
+        --card: rgba(255, 255, 255, 0.06);
+        --border: rgba(255, 255, 255, 0.12);
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.66);
+        --bad: #ff6b6b;
+        --ok: #7ee787;
+        --btn: rgba(255, 255, 255, 0.12);
+        --btnHover: rgba(255, 255, 255, 0.18);
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        color: var(--text);
+        background: radial-gradient(1200px 800px at 20% 10%, #1a2350 0%, var(--bg) 60%) fixed;
+      }
+
+      .wrap { max-width: 980px; margin: 28px auto; padding: 0 16px 40px; }
+      h1 { font-size: 1.45rem; margin: 0 0 8px; }
+      p { margin: 0 0 16px; color: var(--muted); line-height: 1.5; }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      @media (min-width: 900px) {
+        .grid { grid-template-columns: 1fr 1fr; }
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 14px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+        backdrop-filter: blur(10px);
+      }
+
+      .card h2 {
+        font-size: 1.05rem;
+        margin: 0 0 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .badge {
+        font-size: 0.78rem;
+        color: var(--muted);
+        border: 1px solid var(--border);
+        padding: 4px 8px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+
+      .controls {
+        display: grid;
+        gap: 10px;
+      }
+
+      input[type="file"] {
+        width: 100%;
+        padding: 10px;
+        background: rgba(255,255,255,0.07);
+        border: 1px dashed var(--border);
+        border-radius: 12px;
+        color: var(--muted);
+      }
+
+      .btnrow { display: flex; gap: 10px; flex-wrap: wrap; }
+
+      button {
+        appearance: none;
+        border: 1px solid var(--border);
+        background: var(--btn);
+        color: var(--text);
+        padding: 10px 12px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      button:hover { background: var(--btnHover); }
+      button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+      .status { font-size: 0.95rem; color: var(--muted); white-space: pre-wrap; }
+      .status.ok { color: var(--ok); }
+      .status.bad { color: var(--bad); }
+
+      .imgbox {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: rgba(0,0,0,0.2);
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+      .imgbox img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: none;
+        background: rgba(0,0,0,0.1);
+      }
+      .placeholder {
+        color: var(--muted);
+        text-align: center;
+        padding: 14px;
+        font-size: 0.95rem;
+      }
+
+      .meta {
+        margin-top: 10px;
+        font-size: 0.9rem;
+        color: var(--muted);
+        display: grid;
+        gap: 6px;
+      }
+
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size: 0.92em;
+        padding: 2px 6px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: rgba(255,255,255,0.06);
+      }
     </style>
   </head>
+
   <body>
-    <h1>Upload a PNG → get a new PNG back</h1>
-    <p class="hint">
-      This page is GitHub Pages-friendly (static). Set your backend URL below (must be HTTPS),
-      then upload a PNG and click <b>Send</b>.
-    </p>
+    <div class="wrap">
+      <h1>Chessboard Board Classification — PNG Upload</h1>
+      <p>
+        Upload a PNG, preview it, then send it to
+        <code>www.example.chess/boardClassification</code>.
+        When the server responds with a PNG, it will be previewed on the right.
+        (This aligns with the project’s “single static image in → classification out” workflow.) :contentReference[oaicite:0]{index=0}
+      </p>
 
-    <div class="card">
-      <label for="apiBase">Backend API base URL (example: <code>https://my-api.onrender.com</code>)</label>
-      <input id="apiBase" type="text" placeholder="https://YOUR-BACKEND-DOMAIN" />
+      <div class="grid">
+        <!-- LEFT: input + original preview -->
+        <section class="card">
+          <h2>
+            Input Image
+            <span class="badge">PNG only</span>
+          </h2>
 
-      <label for="fileInput">Choose a PNG</label>
-      <input id="fileInput" type="file" accept="image/png" />
+          <div class="controls">
+            <input id="fileInput" type="file" accept="image/png" />
+            <div class="btnrow">
+              <button id="sendBtn" disabled>Send to API</button>
+              <button id="clearBtn" disabled>Clear</button>
+            </div>
+            <div id="clientStatus" class="status"></div>
+          </div>
 
-      <div style="margin-top: 12px; display: flex; gap: 10px;">
-        <button id="sendBtn" disabled>Send</button>
-        <button id="saveBtn" disabled>Download output</button>
-      </div>
+          <div style="height: 12px;"></div>
 
-      <div class="muted" id="status" style="margin-top: 10px;"></div>
-      <div class="error" id="error" style="margin-top: 10px;"></div>
-    </div>
+          <div class="imgbox">
+            <img id="inputPreview" alt="Input PNG preview" />
+            <div id="inputPlaceholder" class="placeholder">
+              Choose a PNG file to see a preview here.
+            </div>
+          </div>
 
-    <div class="row" style="margin-top: 20px;">
-      <div class="card">
-        <h3>Original</h3>
-        <img id="originalImg" alt="Original preview" />
-      </div>
+          <div class="meta" id="inputMeta"></div>
+        </section>
 
-      <div class="card">
-        <h3>Processed Output</h3>
-        <img id="outputImg" alt="Processed output" />
+        <!-- RIGHT: output preview -->
+        <section class="card">
+          <h2>
+            Output Image
+            <span class="badge">PNG response</span>
+          </h2>
+
+          <div class="imgbox">
+            <img id="outputPreview" alt="Output PNG preview" />
+            <div id="outputPlaceholder" class="placeholder">
+              The server response (PNG) will appear here after you click <b>Send to API</b>.
+            </div>
+          </div>
+
+          <div class="meta" id="outputMeta"></div>
+        </section>
       </div>
     </div>
 
     <script>
-      const apiBaseInput = document.getElementById("apiBase");
+      // Fixed endpoint (user should not enter a domain)
+      const ENDPOINT = "https://www.example.chess/boardClassification";
+
       const fileInput = document.getElementById("fileInput");
       const sendBtn = document.getElementById("sendBtn");
-      const saveBtn = document.getElementById("saveBtn");
-      const originalImg = document.getElementById("originalImg");
-      const outputImg = document.getElementById("outputImg");
-      const statusEl = document.getElementById("status");
-      const errorEl = document.getElementById("error");
+      const clearBtn = document.getElementById("clearBtn");
+
+      const clientStatus = document.getElementById("clientStatus");
+
+      const inputPreview = document.getElementById("inputPreview");
+      const inputPlaceholder = document.getElementById("inputPlaceholder");
+      const inputMeta = document.getElementById("inputMeta");
+
+      const outputPreview = document.getElementById("outputPreview");
+      const outputPlaceholder = document.getElementById("outputPlaceholder");
+      const outputMeta = document.getElementById("outputMeta");
 
       let selectedFile = null;
-      let outputBlobUrl = null;
+      let inputObjectUrl = null;
+      let outputObjectUrl = null;
 
-      const setStatus = (msg) => (statusEl.textContent = msg || "");
-      const setError = (msg) => (errorEl.textContent = msg || "");
-
-      const normalizeApiBase = (raw) => {
-        const s = (raw || "").trim();
-        if (!s) return "";
-        // Remove trailing slash for clean joining
-        return s.endsWith("/") ? s.slice(0, -1) : s;
+      const setStatus = (msg, kind = "") => {
+        clientStatus.textContent = msg || "";
+        clientStatus.className = "status" + (kind ? " " + kind : "");
       };
 
-      const isValidHttpsUrl = (raw) => {
-        try {
-          const u = new URL(raw);
-          return u.protocol === "https:";
-        } catch {
-          return false;
+      const resetOutput = () => {
+        outputMeta.textContent = "";
+        outputPreview.style.display = "none";
+        outputPreview.removeAttribute("src");
+        outputPlaceholder.style.display = "block";
+        if (outputObjectUrl) {
+          URL.revokeObjectURL(outputObjectUrl);
+          outputObjectUrl = null;
         }
       };
 
-      const updateButtons = () => {
-        const apiBase = normalizeApiBase(apiBaseInput.value);
-        const okApi = isValidHttpsUrl(apiBase);
-        sendBtn.disabled = !(okApi && selectedFile);
+      const resetInput = () => {
+        inputMeta.textContent = "";
+        inputPreview.style.display = "none";
+        inputPreview.removeAttribute("src");
+        inputPlaceholder.style.display = "block";
+        if (inputObjectUrl) {
+          URL.revokeObjectURL(inputObjectUrl);
+          inputObjectUrl = null;
+        }
       };
 
-      apiBaseInput.addEventListener("input", () => {
-        setError("");
-        updateButtons();
-      });
+      const clearAll = () => {
+        fileInput.value = "";
+        selectedFile = null;
+        sendBtn.disabled = true;
+        clearBtn.disabled = true;
+        setStatus("");
+        resetInput();
+        resetOutput();
+      };
+
+      // ArrayBuffer -> Base64 (for JSON payload)
+      const arrayBufferToBase64 = (buffer) => {
+        const bytes = new Uint8Array(buffer);
+        let binary = "";
+        const chunkSize = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+        }
+        return btoa(binary);
+      };
+
+      // Base64 -> Blob
+      const base64ToBlob = (base64, mimeType = "image/png") => {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return new Blob([bytes], { type: mimeType });
+      };
+
+      const showInputPreview = (file) => {
+        resetInput();
+        inputObjectUrl = URL.createObjectURL(file);
+        inputPreview.src = inputObjectUrl;
+        inputPreview.style.display = "block";
+        inputPlaceholder.style.display = "none";
+        inputMeta.innerHTML = `
+          <div><b>Name:</b> ${file.name}</div>
+          <div><b>Type:</b> ${file.type || "unknown"}</div>
+          <div><b>Size:</b> ${(file.size / 1024).toFixed(1)} KB</div>
+        `;
+      };
+
+      const showOutputPreviewFromBlob = (blob) => {
+        resetOutput();
+        outputObjectUrl = URL.createObjectURL(blob);
+        outputPreview.src = outputObjectUrl;
+        outputPreview.style.display = "block";
+        outputPlaceholder.style.display = "none";
+        outputMeta.innerHTML = `
+          <div><b>Type:</b> ${blob.type || "image/png"}</div>
+          <div><b>Size:</b> ${(blob.size / 1024).toFixed(1)} KB</div>
+        `;
+      };
 
       fileInput.addEventListener("change", () => {
-        setError("");
         setStatus("");
-        saveBtn.disabled = true;
+        resetOutput();
 
-        if (outputBlobUrl) {
-          URL.revokeObjectURL(outputBlobUrl);
-          outputBlobUrl = null;
-        }
-        outputImg.removeAttribute("src");
-
-        const file = fileInput.files?.[0];
+        const file = fileInput.files && fileInput.files[0];
         if (!file) {
           selectedFile = null;
-          originalImg.removeAttribute("src");
-          updateButtons();
+          sendBtn.disabled = true;
+          clearBtn.disabled = true;
+          resetInput();
           return;
         }
 
-        if (file.type !== "image/png") {
+        // Enforce PNG only (both accept= and runtime check)
+        if (file.type !== "image/png" && !file.name.toLowerCase().endsWith(".png")) {
           selectedFile = null;
-          originalImg.removeAttribute("src");
-          setError("Please choose a PNG file (image/png).");
-          updateButtons();
+          sendBtn.disabled = true;
+          clearBtn.disabled = false;
+          resetInput();
+          setStatus("Only PNG files are allowed. Please choose a .png file.", "bad");
           return;
         }
 
         selectedFile = file;
-        originalImg.src = URL.createObjectURL(file);
-        updateButtons();
+        sendBtn.disabled = false;
+        clearBtn.disabled = false;
+        showInputPreview(file);
       });
 
-      sendBtn.addEventListener("click", async () => {
-        const apiBase = normalizeApiBase(apiBaseInput.value);
+      clearBtn.addEventListener("click", clearAll);
 
-        if (!isValidHttpsUrl(apiBase)) {
-          setError("Please enter a valid HTTPS backend URL (e.g., https://my-api.onrender.com).");
-          updateButtons();
-          return;
-        }
+      sendBtn.addEventListener("click", async () => {
         if (!selectedFile) return;
 
-        setError("");
-        setStatus("Uploading and processing...");
+        setStatus("Uploading to API…");
         sendBtn.disabled = true;
-        saveBtn.disabled = true;
+        clearBtn.disabled = true;
 
         try {
-          const formData = new FormData();
-          formData.append("file", selectedFile, selectedFile.name);
+          // Prefer JSON: send base64-encoded PNG
+          const buffer = await selectedFile.arrayBuffer();
+          const imageBase64 = arrayBufferToBase64(buffer);
 
-          const res = await fetch(`${apiBase}/api/process-image`, {
+          const payload = {
+            filename: selectedFile.name,
+            contentType: "image/png",
+            imageBase64
+          };
+
+          const res = await fetch(ENDPOINT, {
             method: "POST",
-            body: formData
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "image/png, application/json"
+            },
+            body: JSON.stringify(payload)
           });
 
           if (!res.ok) {
-            // FastAPI often returns JSON {"detail": "..."} on error
-            let msg = `Server error (${res.status}).`;
             const ct = res.headers.get("content-type") || "";
+            let detail = "";
             if (ct.includes("application/json")) {
               const j = await res.json().catch(() => null);
-              if (j && (j.detail || j.message)) msg += " " + (j.detail || j.message);
+              if (j && (j.detail || j.message || j.error)) detail = String(j.detail || j.message || j.error);
             } else {
-              const t = await res.text().catch(() => "");
-              if (t) msg += " " + t;
+              detail = await res.text().catch(() => "");
             }
-            throw new Error(msg);
+            throw new Error(`Server error (${res.status}). ${detail}`.trim());
           }
 
-          const blob = await res.blob();
-          if (!blob.type.startsWith("image/")) {
-            throw new Error(`Unexpected response type: ${blob.type}`);
+          // Assume response is a PNG.
+          // Robust handling:
+          // - If response is image/png -> use blob
+          // - If response is JSON with {imageBase64} -> decode and show
+          const ct = res.headers.get("content-type") || "";
+
+          if (ct.includes("image/png") || ct.startsWith("image/")) {
+            const blob = await res.blob();
+            showOutputPreviewFromBlob(blob);
+          } else if (ct.includes("application/json")) {
+            const j = await res.json();
+            if (!j || !j.imageBase64) {
+              throw new Error("Got JSON response but missing imageBase64.");
+            }
+            const blob = base64ToBlob(j.imageBase64, "image/png");
+            showOutputPreviewFromBlob(blob);
+          } else {
+            // last resort: try blob anyway
+            const blob = await res.blob();
+            if (!blob.type.startsWith("image/")) {
+              throw new Error(`Unexpected response type: ${ct || blob.type || "unknown"}`);
+            }
+            showOutputPreviewFromBlob(blob);
           }
 
-          if (outputBlobUrl) URL.revokeObjectURL(outputBlobUrl);
-          outputBlobUrl = URL.createObjectURL(blob);
-          outputImg.src = outputBlobUrl;
-
-          saveBtn.disabled = false;
-          setStatus("Done.");
+          setStatus("Done ✓", "ok");
         } catch (err) {
-          setStatus("");
-          setError(err?.message || String(err));
+          resetOutput();
+          setStatus(err?.message || String(err), "bad");
         } finally {
-          updateButtons();
+          sendBtn.disabled = !selectedFile;
+          clearBtn.disabled = !selectedFile ? true : false;
         }
       });
 
-      saveBtn.addEventListener("click", () => {
-        if (!outputBlobUrl) return;
-
-        const a = document.createElement("a");
-        a.href = outputBlobUrl;
-        a.download = "processed.png";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      });
-
-      // Optional: prefill from URL like: ?api=https://my-api.onrender.com
-      const params = new URLSearchParams(location.search);
-      const apiParam = params.get("api");
-      if (apiParam) {
-        apiBaseInput.value = apiParam;
-      }
-      updateButtons();
+      // Start clean
+      clearAll();
     </script>
   </body>
 </html>
