@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Chessboard Classification — PNG Upload</title>
+    <title>Chessboard Classification</title>
     <style>
       :root {
         --bg: #0b1020;
@@ -26,7 +26,7 @@
       }
 
       .wrap { max-width: 980px; margin: 28px auto; padding: 0 16px 40px; }
-      h1 { font-size: 1.45rem; margin: 0 0 8px; }
+      h1 { font-size: 1.5rem; margin: 0 0 8px; }
       p { margin: 0 0 16px; color: var(--muted); line-height: 1.5; }
 
       .grid {
@@ -65,11 +65,6 @@
         white-space: nowrap;
       }
 
-      .controls {
-        display: grid;
-        gap: 10px;
-      }
-
       input[type="file"] {
         width: 100%;
         padding: 10px;
@@ -79,7 +74,7 @@
         color: var(--muted);
       }
 
-      .btnrow { display: flex; gap: 10px; flex-wrap: wrap; }
+      .btnrow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
 
       button {
         appearance: none;
@@ -94,7 +89,7 @@
       button:hover { background: var(--btnHover); }
       button:disabled { opacity: 0.55; cursor: not-allowed; }
 
-      .status { font-size: 0.95rem; color: var(--muted); white-space: pre-wrap; }
+      .status { margin-top: 10px; font-size: 0.95rem; color: var(--muted); white-space: pre-wrap; }
       .status.ok { color: var(--ok); }
       .status.bad { color: var(--bad); }
 
@@ -107,13 +102,13 @@
         display: grid;
         place-items: center;
         overflow: hidden;
+        margin-top: 12px;
       }
       .imgbox img {
         width: 100%;
         height: 100%;
         object-fit: contain;
         display: none;
-        background: rgba(0,0,0,0.1);
       }
       .placeholder {
         color: var(--muted);
@@ -143,32 +138,24 @@
 
   <body>
     <div class="wrap">
-      <h1>Chessboard Board Classification — PNG Upload</h1>
+      <h1>Chessboard Classification — PNG Upload</h1>
       <p>
-        Upload a PNG, preview it, then send it to
-        <code>www.example.chess/boardClassification</code>.
-        When the server responds with a PNG, it will be previewed on the right.
-        (This aligns with the project’s “single static image in → classification out” workflow.) :contentReference[oaicite:0]{index=0}
+        Upload a PNG, preview it, then send it to the backend.
+        The backend returns a PNG which will be previewed on the right.
       </p>
 
       <div class="grid">
-        <!-- LEFT: input + original preview -->
         <section class="card">
-          <h2>
-            Input Image
-            <span class="badge">PNG only</span>
-          </h2>
+          <h2>Input Image <span class="badge">PNG only</span></h2>
 
-          <div class="controls">
-            <input id="fileInput" type="file" accept="image/png" />
-            <div class="btnrow">
-              <button id="sendBtn" disabled>Send to API</button>
-              <button id="clearBtn" disabled>Clear</button>
-            </div>
-            <div id="clientStatus" class="status"></div>
+          <input id="fileInput" type="file" accept="image/png" />
+
+          <div class="btnrow">
+            <button id="sendBtn" disabled>Send</button>
+            <button id="clearBtn" disabled>Clear</button>
           </div>
 
-          <div style="height: 12px;"></div>
+          <div id="clientStatus" class="status"></div>
 
           <div class="imgbox">
             <img id="inputPreview" alt="Input PNG preview" />
@@ -180,17 +167,13 @@
           <div class="meta" id="inputMeta"></div>
         </section>
 
-        <!-- RIGHT: output preview -->
         <section class="card">
-          <h2>
-            Output Image
-            <span class="badge">PNG response</span>
-          </h2>
+          <h2>Output Image <span class="badge">PNG response</span></h2>
 
           <div class="imgbox">
             <img id="outputPreview" alt="Output PNG preview" />
             <div id="outputPlaceholder" class="placeholder">
-              The server response (PNG) will appear here after you click <b>Send to API</b>.
+              The server response (PNG) will appear here after you click <b>Send</b>.
             </div>
           </div>
 
@@ -200,8 +183,13 @@
     </div>
 
     <script>
-      // Fixed endpoint (user should not enter a domain)
-      const ENDPOINT = "https://www.example.chess/boardClassification";
+      // IMPORTANT:
+      // Set this to your deployed backend origin (must be HTTPS when using GitHub Pages).
+      // Example: "https://my-chess-api.onrender.com"
+      const BACKEND_ORIGIN = "https://www.example.chess"; // <-- change to your real backend domain
+
+      // Endpoint is fixed; user does not enter a domain.
+      const ENDPOINT = `${BACKEND_ORIGIN}/boardClassification`;
 
       const fileInput = document.getElementById("fileInput");
       const sendBtn = document.getElementById("sendBtn");
@@ -269,14 +257,6 @@
         return btoa(binary);
       };
 
-      // Base64 -> Blob
-      const base64ToBlob = (base64, mimeType = "image/png") => {
-        const binary = atob(base64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        return new Blob([bytes], { type: mimeType });
-      };
-
       const showInputPreview = (file) => {
         resetInput();
         inputObjectUrl = URL.createObjectURL(file);
@@ -336,12 +316,11 @@
       sendBtn.addEventListener("click", async () => {
         if (!selectedFile) return;
 
-        setStatus("Uploading to API…");
+        setStatus("Uploading…");
         sendBtn.disabled = true;
         clearBtn.disabled = true;
 
         try {
-          // Prefer JSON: send base64-encoded PNG
           const buffer = await selectedFile.arrayBuffer();
           const imageBase64 = arrayBufferToBase64(buffer);
 
@@ -372,31 +351,13 @@
             throw new Error(`Server error (${res.status}). ${detail}`.trim());
           }
 
-          // Assume response is a PNG.
-          // Robust handling:
-          // - If response is image/png -> use blob
-          // - If response is JSON with {imageBase64} -> decode and show
-          const ct = res.headers.get("content-type") || "";
-
-          if (ct.includes("image/png") || ct.startsWith("image/")) {
-            const blob = await res.blob();
-            showOutputPreviewFromBlob(blob);
-          } else if (ct.includes("application/json")) {
-            const j = await res.json();
-            if (!j || !j.imageBase64) {
-              throw new Error("Got JSON response but missing imageBase64.");
-            }
-            const blob = base64ToBlob(j.imageBase64, "image/png");
-            showOutputPreviewFromBlob(blob);
-          } else {
-            // last resort: try blob anyway
-            const blob = await res.blob();
-            if (!blob.type.startsWith("image/")) {
-              throw new Error(`Unexpected response type: ${ct || blob.type || "unknown"}`);
-            }
-            showOutputPreviewFromBlob(blob);
+          // Assume response is PNG
+          const blob = await res.blob();
+          if (!blob.type.startsWith("image/")) {
+            throw new Error(`Unexpected response type: ${blob.type || "unknown"}`);
           }
 
+          showOutputPreviewFromBlob(blob);
           setStatus("Done ✓", "ok");
         } catch (err) {
           resetOutput();
@@ -407,7 +368,6 @@
         }
       });
 
-      // Start clean
       clearAll();
     </script>
   </body>
