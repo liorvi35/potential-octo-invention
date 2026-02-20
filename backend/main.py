@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import base64
 import binascii
+import os
 from io import BytesIO
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,32 +13,48 @@ from pydantic import BaseModel, Field
 from PIL import Image, ImageDraw, ImageFont
 
 
+def _parse_cors_origins(value: str) -> List[str]:
+    """
+    CORS_ORIGINS can be:
+      - "*"  (allow all; okay for testing)
+      - "https://user.github.io,https://example.com"
+    """
+    v = (value or "").strip()
+    if not v:
+        return []
+    if v == "*":
+        return ["*"]
+    return [origin.strip() for origin in v.split(",") if origin.strip()]
+
+
+CORS_ORIGINS = _parse_cors_origins(os.getenv("CORS_ORIGINS", ""))
+
 app = FastAPI(title="Chess Board Classification API", version="1.0.0")
 
-# If your frontend is on GitHub Pages, set this to your Pages origin.
-# For quick testing you can use ["*"], but tighten it for production.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["POST", "OPTIONS"],
-    allow_headers=["*"],
-)
+if CORS_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=CORS_ORIGINS,
+        allow_credentials=False,
+        allow_methods=["POST", "OPTIONS"],
+        allow_headers=["*"],
+    )
 
 
 class BoardClassificationRequest(BaseModel):
-    filename: Optional[str] = Field(default=None, description="Original filename (optional)")
-    contentType: str = Field(default="image/png", description="Expected: image/png")
-    imageBase64: str = Field(..., description="Base64-encoded PNG bytes (no data: prefix)")
+    filename: Optional[str] = Field(default=None)
+    contentType: str = Field(default="image/png")
+    imageBase64: str = Field(..., description="Base64-encoded PNG bytes (may include data: prefix)")
 
 
 def _decode_base64(s: str) -> bytes:
-    # Allow accidental "data:image/png;base64,...." prefixes
-    if "," in s and s.strip().lower().startswith("data:"):
-        s = s.split(",", 1)[1]
+    # Allow "data:image/png;base64,...."
+    raw = (s or "").strip()
+    if raw.lower().startswith("data:") and "," in raw:
+        raw = raw.split(",", 1)[1]
 
     try:
-        return base64.b64decode(s, validate=True)
+        return base64.b64decode(raw, validate=True)
     except (binascii.Error, ValueError) as e:
         raise HTTPException(status_code=400, detail=f"Invalid base64: {e}")
 
@@ -55,7 +72,7 @@ def _ensure_png(png_bytes: bytes) -> Image.Image:
 
 
 def _process_image(img: Image.Image) -> bytes:
-    # Example "output image": add border + watermark (replace with your model later)
+    # Example output transformation (replace with your real board classification visualization)
     border = 16
     w, h = img.size
 
@@ -66,7 +83,6 @@ def _process_image(img: Image.Image) -> bytes:
     font = ImageFont.load_default()
     text = "boardClassification"
 
-    # place watermark bottom-right
     bbox = draw.textbbox((0, 0), text, font=font)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
     pad = 10
@@ -83,7 +99,7 @@ def _process_image(img: Image.Image) -> bytes:
 
 @app.post("/boardClassification")
 async def board_classification(req: BoardClassificationRequest) -> Response:
-    if req.contentType.lower() != "image/png":
+    if (req.contentType or "").lower() != "image/png":
         raise HTTPException(status_code=400, detail="contentType must be image/png")
 
     png_bytes = _decode_base64(req.imageBase64)
@@ -96,4 +112,3 @@ async def board_classification(req: BoardClassificationRequest) -> Response:
 @app.get("/health")
 async def health() -> dict:
     return {"ok": True}
-  
