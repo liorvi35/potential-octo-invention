@@ -4,8 +4,8 @@ services:
     env: docker
     plan: free
     region: oregon
-    dockerfilePath: chess.Dockerfile
-    dockerContext: .
+    dockerfilePath: ./docs/backend/chess.Dockerfile
+    dockerContext: ./docs/backend/
     dockerCommand: uvicorn main:app --host 0.0.0.0 --port 8000
     healthCheckPath: /health
     autoDeploy: true
