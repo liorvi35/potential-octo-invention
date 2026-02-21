@@ -4,7 +4,6 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Chessboard Classification</title>
-	<link rel="icon" type="image/x-icon" href="favicon.ico">
     <style>
       :root {
         --bg: #0b1020;
@@ -69,7 +68,7 @@
         color: var(--muted);
       }
 
-      .btnrow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+      .btnrow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
 
       button {
         appearance: none;
@@ -118,23 +117,31 @@
     <div class="wrap">
       <h1>Chessboard Classification — PNG Upload</h1>
       <p>
-        Upload a PNG, preview it, then send it to <code>/boardClassification</code>.
-        The response is assumed to be a PNG and is previewed on the right.
+        First click <b>Ping</b> to make sure the server is up (<code>GET /health</code> must return <code>{"ok": true}</code>).
+        Only then you can upload a PNG and send it to <code>POST /boardClassification</code>.
       </p>
 
       <div class="grid">
         <section class="card">
-          <h2>Input Image <span class="badge">PNG only</span></h2>
-          <input id="fileInput" type="file" accept="image/png" />
+          <h2>Input Image <span class="badge">Ping required</span></h2>
+
+          <div class="btnrow" style="margin-top: 0;">
+            <button id="pingBtn">Ping</button>
+            <span id="pingStatus" class="status" style="margin: 0;"></span>
+          </div>
+
+          <input id="fileInput" type="file" accept="image/png" disabled />
+
           <div class="btnrow">
             <button id="sendBtn" disabled>Send</button>
             <button id="clearBtn" disabled>Clear</button>
           </div>
+
           <div id="clientStatus" class="status"></div>
 
           <div class="imgbox">
             <img id="inputPreview" alt="Input PNG preview" />
-            <div id="inputPlaceholder" class="placeholder">Choose a PNG file to see a preview here.</div>
+            <div id="inputPlaceholder" class="placeholder">Click Ping first. Then choose a PNG to preview here.</div>
           </div>
           <div class="meta" id="inputMeta"></div>
         </section>
@@ -154,8 +161,13 @@
 
     <script>
       // Fixed backend endpoint (user does not enter a domain).
-      // Must be HTTPS because GitHub Pages is HTTPS.
-      const ENDPOINT = "https://chess-api-en20.onrender.com/boardClassification"; // <-- change this
+      // Must be HTTPS for GitHub Pages.
+      const BASE_ORIGIN = "https://YOUR_BACKEND_DOMAIN"; // e.g. https://your-service.onrender.com
+      const ENDPOINT = `${BASE_ORIGIN}/boardClassification`;
+      const HEALTH_ENDPOINT = `${BASE_ORIGIN}/health`;
+
+      const pingBtn = document.getElementById("pingBtn");
+      const pingStatus = document.getElementById("pingStatus");
 
       const fileInput = document.getElementById("fileInput");
       const sendBtn = document.getElementById("sendBtn");
@@ -173,10 +185,16 @@
       let selectedFile = null;
       let inputObjectUrl = null;
       let outputObjectUrl = null;
+      let pingOk = false;
 
       const setStatus = (msg, kind = "") => {
         clientStatus.textContent = msg || "";
         clientStatus.className = "status" + (kind ? " " + kind : "");
+      };
+
+      const setPingStatus = (msg, kind = "") => {
+        pingStatus.textContent = msg || "";
+        pingStatus.className = "status" + (kind ? " " + kind : "");
       };
 
       const resetOutput = () => {
@@ -197,14 +215,29 @@
         inputObjectUrl = null;
       };
 
+      const updateUiGates = () => {
+        fileInput.disabled = !pingOk;
+
+        // send/clear depend on ping + file
+        clearBtn.disabled = !pingOk || !selectedFile;
+        sendBtn.disabled = !pingOk || !selectedFile;
+
+        if (!pingOk) {
+          // lock the flow until ping succeeds
+          fileInput.value = "";
+          selectedFile = null;
+          resetInput();
+          resetOutput();
+        }
+      };
+
       const clearAll = () => {
         fileInput.value = "";
         selectedFile = null;
-        sendBtn.disabled = true;
-        clearBtn.disabled = true;
         setStatus("");
         resetInput();
         resetOutput();
+        updateUiGates();
       };
 
       const arrayBufferToBase64 = (buffer) => {
@@ -242,37 +275,68 @@
         `;
       };
 
+      pingBtn.addEventListener("click", async () => {
+        setStatus("");
+        setPingStatus("Pinging…");
+        pingBtn.disabled = true;
+
+        try {
+          const res = await fetch(HEALTH_ENDPOINT, { method: "GET" });
+          if (!res.ok) throw new Error(`Health check failed (${res.status})`);
+
+          const data = await res.json().catch(() => null);
+          if (!data || data.ok !== true) {
+            throw new Error('Unexpected health response (expected {"ok": true}).');
+          }
+
+          pingOk = true;
+          setPingStatus("Server OK ✓", "ok");
+        } catch (err) {
+          pingOk = false;
+          setPingStatus(err?.message || String(err), "bad");
+        } finally {
+          pingBtn.disabled = false;
+          updateUiGates();
+        }
+      });
+
       fileInput.addEventListener("change", () => {
         setStatus("");
         resetOutput();
 
+        if (!pingOk) {
+          setStatus("Please click Ping first.", "bad");
+          fileInput.value = "";
+          return;
+        }
+
         const file = fileInput.files && fileInput.files[0];
         if (!file) {
           selectedFile = null;
-          sendBtn.disabled = true;
-          clearBtn.disabled = true;
-          resetInput();
+          updateUiGates();
           return;
         }
 
         if (file.type !== "image/png" && !file.name.toLowerCase().endsWith(".png")) {
           selectedFile = null;
-          sendBtn.disabled = true;
-          clearBtn.disabled = false;
           resetInput();
           setStatus("Only PNG files are allowed. Please choose a .png file.", "bad");
+          updateUiGates();
           return;
         }
 
         selectedFile = file;
-        sendBtn.disabled = false;
-        clearBtn.disabled = false;
         showInputPreview(file);
+        updateUiGates();
       });
 
       clearBtn.addEventListener("click", clearAll);
 
       sendBtn.addEventListener("click", async () => {
+        if (!pingOk) {
+          setStatus("Please click Ping first.", "bad");
+          return;
+        }
         if (!selectedFile) return;
 
         setStatus("Uploading…");
@@ -312,12 +376,13 @@
           resetOutput();
           setStatus(err?.message || String(err), "bad");
         } finally {
-          sendBtn.disabled = !selectedFile;
-          clearBtn.disabled = !selectedFile ? true : false;
+          updateUiGates();
         }
       });
 
-      clearAll();
+      // initial state: must ping first
+      setPingStatus("Ping required.", "");
+      updateUiGates();
     </script>
   </body>
 </html>
