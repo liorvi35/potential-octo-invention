@@ -27,17 +27,13 @@ def parse_cors_origins() -> List[str]:
 
 
 app = FastAPI(title="Chess Board Classification API", version="1.0.0")
-
-cors_origins = parse_cors_origins()
-if cors_origins:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=cors_origins,
-        allow_credentials=False,
-        allow_methods=["POST", "OPTIONS"],
-        allow_headers=["*"],
-    )
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # allow ALL origins
+    allow_credentials=False,  # must be False when using "*"
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class BoardClassificationRequest(BaseModel):
     filename: Optional[str] = Field(default=None)
