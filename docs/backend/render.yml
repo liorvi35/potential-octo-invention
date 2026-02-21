@@ -12,7 +12,7 @@ services:
 
     envVars:
       - key: CORS_ORIGINS
-        value: https://liorvi35.github.io
+        value: *
       - key: BORDER_SIZE
         value: "16"
       - key: WATERMARK_TEXT
