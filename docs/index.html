@@ -1,51 +1,111 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1" name="viewport"/>
-<title>Chessboard Classification</title>
-<link rel="icon" href="favicon.ico" type="image/x-icon">
-<link href="styles.css" rel="stylesheet"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chessboard Classification</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-<div class="wrap">
-<h1>Chessboard Classification — PNG Upload</h1>
-<p>
-        First click <b>Ping</b> to make sure the server is up (<code>GET /health</code> must return <code>{"ok": true}</code>).
-        Only then you can upload a PNG and send it to <code>POST /boardClassification</code>.
-      </p>
-<div class="grid">
-<section class="card">
-<h2>Input Image <span class="badge">Ping required</span></h2>
-<div class="btnrow" style="margin-top: 0;">
-<button id="pingBtn">Ping</button>
-<span class="status" id="pingStatus" style="margin: 0;"></span>
-</div>
-<input accept="image/png" disabled="" id="fileInput" type="file"/>
-<div class="btnrow">
-<button disabled="" id="sendBtn">Send</button>
-<button disabled="" id="clearBtn">Clear</button>
-</div>
-<div class="status" id="clientStatus"></div>
-<div class="imgbox">
-<img alt="Input PNG preview" id="inputPreview"/>
-<div class="placeholder" id="inputPlaceholder">Click Ping first. Then choose a PNG to preview here.</div>
-</div>
-<div class="meta" id="inputMeta"></div>
-</section>
-<section class="card">
-<h2>Output Image <span class="badge">PNG response</span></h2>
-<div class="imgbox">
-<img alt="Output PNG preview" id="outputPreview"/>
-<div class="placeholder" id="outputPlaceholder">
-              The server response (PNG) will appear here after you click <b>Send</b>.
+  <div class="wrap">
+    <header class="hero">
+      <div class="hero-left">
+        <img class="hero-logo" src="eng-logo.png" alt="Ben-Gurion University of the Negev logo" />
+        <div>
+          <p class="eyebrow">Intro to Deep Learning Demo</p>
+          <h1>Chessboard Classification</h1>
+        </div>
+      </div>
+    </header>
+
+    <section class="toolbar card">
+      <div class="toolbar-left">
+        <button id="pingBtn" type="button">Ping Backend</button>
+        <label class="file-picker disabled" for="fileInput" aria-disabled="true">
+          <span>Choose image</span>
+          <input id="fileInput" type="file" accept="image/*" disabled />
+        </label>
+        <button id="testBtn" type="button" disabled>Test me!</button>
+      </div>
+      <div class="toolbar-right">
+        <button id="sendBtn" type="button" disabled>Classify Board</button>
+        <button id="clearBtn" type="button" disabled>Clear</button>
+      </div>
+      <div id="status" class="status">Ping the backend to enable image upload.</div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <div class="card-head">
+          <h2>Input image</h2>
+          <span class="badge" id="inputBadge">No file selected</span>
+        </div>
+        <div class="preview-box">
+          <img id="inputPreview" alt="Uploaded chessboard preview" />
+          <div id="inputPlaceholder" class="placeholder">Your selected image will appear here.</div>
+        </div>
+        <div id="inputMeta" class="meta"></div>
+      </article>
+
+      <article class="card result-card">
+        <div class="card-head">
+          <h2>Classification result</h2>
+          <span class="badge" id="resultBadge">Waiting</span>
+        </div>
+
+        <div id="resultPlaceholder" class="placeholder large-placeholder">
+          <div id="resultMessage">The backend response will appear here after classification.</div>
+          <div id="loadingWrap" class="loading hidden" aria-live="polite" aria-busy="true">
+            <div class="spinner" aria-hidden="true"></div>
+            <div class="loading-text">Classifying...</div>
+          </div>
+        </div>
+
+        <div id="resultContent" class="result-content hidden">
+          <div class="summary-grid single">
+            <div class="summary-item">
+              <span class="label">FEN</span>
+              <div class="copy-wrap copy-wrap--fen">
+                <button id="copyFenBtn" class="copy-btn" type="button" title="Copy" aria-label="Copy FEN">⧉</button>
+                <code id="fenValue" class="multiline-code" tabindex="0"></code>
+              </div>
             </div>
-</div>
-<div class="meta" id="outputMeta"></div>
-</section>
-</div>
-</div>
+          </div>
+
+          <div class="board-wrap">
+            <div class="board-header">
+              <h3>Rendered board</h3>
+              <div class="legend">
+                <span><i class="legend-dot filled"></i> occupied</span>
+                <span><i class="legend-dot empty"></i> empty</span>
+              </div>
+            </div>
+            <div id="boardGrid" class="board-grid" aria-label="Classified chess board"></div>
+          </div>
+
+          <div class="raw-grid">
+            <div>
+              <h3>Numeric board (8×8)</h3>
+              <div class="copy-wrap">
+                <button id="copyBoardBtn" class="copy-btn" type="button" title="Copy" aria-label="Copy numeric board">⧉</button>
+                <pre id="boardJson" class="code-block" tabindex="0"></pre>
+              </div>
+            </div>
+            <div>
+              <h3>Piece counts</h3>
+              <div id="pieceCounts" class="counts"></div>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <footer class="footer" role="contentinfo">
+      <p>Jonathan Zmora &amp; Lior Vinman <span class="footer-year">2026</span> ©</p>
+    </footer>
+
+  </div>
 
   <script src="script.js"></script>
 </body>
