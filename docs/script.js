@@ -1,4 +1,4 @@
-const API_ORIGIN = "https://liorvi35-chess-app.hf.space";
+const API_ORIGIN = "https://liorvi35-chess-api.hf.space";
 const HEALTH_ENDPOINT = `${API_ORIGIN}/health`;
 const CLASSIFY_ENDPOINT = `${API_ORIGIN}/boardClassification`;
 const TEST_SAMPLES_DIR = "./test_samples/";
