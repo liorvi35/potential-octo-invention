@@ -1,4 +1,4 @@
-const API_ORIGIN = "https://chess-api-en20.onrender.com";
+const API_ORIGIN = "https://chess-app-kxy8.onrender.com";
 const HEALTH_ENDPOINT = `${API_ORIGIN}/health`;
 const CLASSIFY_ENDPOINT = `${API_ORIGIN}/boardClassification`;
 const TEST_SAMPLES_DIR = "./test_samples/";
