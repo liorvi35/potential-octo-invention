@@ -13,5 +13,3 @@ services:
     envVars:
       - key: PYTHONUNBUFFERED
         value: "1"
-      - key: MODEL_PATH
-        value: "./convnext_new_data.pth"

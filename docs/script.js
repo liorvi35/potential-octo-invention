@@ -1,4 +1,4 @@
-const API_ORIGIN = window.CHESS_API_ORIGIN || "http://127.0.0.1:8000";
+const API_ORIGIN = "https://chess-api-en20.onrender.com:8000";
 const HEALTH_ENDPOINT = `${API_ORIGIN}/health`;
 const CLASSIFY_ENDPOINT = `${API_ORIGIN}/boardClassification`;
 const TEST_SAMPLES_DIR = "./test_samples/";
@@ -232,7 +232,7 @@ const fetchTestSampleUrls = async () => {
 
   const listingResponse = await fetch(TEST_SAMPLES_DIR, { cache: "no-store" });
   if (!listingResponse.ok) {
-    throw new Error("Could not read ./test_samples/. Add test_samples/manifest.json or enable directory listing.");
+    throw new Error("Could not find test samples files.");
   }
 
   const listingHtml = await listingResponse.text();
@@ -469,7 +469,7 @@ fileInput.addEventListener("change", () => {
 
   showPreview(selectedFile, "Local file");
   updateButtons();
-  setStatus("Image selected. Click “Classify Board”.", "ok");
+  setStatus("Image selected. Click 'Classify Board'.", "ok");
 });
 
 clearBtn.addEventListener("click", () => {

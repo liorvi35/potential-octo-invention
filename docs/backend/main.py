@@ -13,12 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 
 
-try:
-    MODEL_PATH: Path = Path(os.getenv("MODEL_PATH", None))
-except TypeError:
-    raise
-    sys.exit(1)
-
+MODEL_PATH: Path = Path("./convnext_new_data.pth")
 BOARD_SIZE: int = 8
 MODEL_INPUT_SIZE: int = 224
 IMAGENET_MEAN: torch.tensor = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float32).view(3, 1, 1)
