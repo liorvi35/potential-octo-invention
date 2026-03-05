@@ -2,7 +2,7 @@ const API_ORIGIN = "https://liorvi35-chess-api.hf.space";
 
 const HEALTH_ENDPOINT = `${API_ORIGIN}/health`;
 const CLASSIFY_ENDPOINT = `${API_ORIGIN}/boardClassification`;
-const TEST_SAMPLES_DIR = "../test_samples/";
+const TEST_SAMPLES_DIR = "static/test_samples/";
 const TEST_SAMPLES_MANIFEST = `${TEST_SAMPLES_DIR}manifest.json`;
 
 const FILE_VALUE_TO_NAME = {
