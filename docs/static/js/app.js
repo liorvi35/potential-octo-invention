@@ -174,16 +174,25 @@
   };
 
   const readError = async (response) => {
-    try {
-      const body = await response.json();
-      if (typeof body.detail === "string") {
-        return body.detail;
-      }
-      return JSON.stringify(body.detail || body);
-    } catch {
-      return await response.text();
-    }
-  };
+  let bodyText = "";
+
+  try {
+    bodyText = await response.text();
+  } catch {
+    return response.statusText || `HTTP ${response.status}`;
+  }
+
+  if (!bodyText) {
+    return response.statusText || `HTTP ${response.status}`;
+  }
+
+  try {
+    const data = JSON.parse(bodyText);
+    return data.detail || data.message || bodyText;
+  } catch {
+    return bodyText;
+  }
+};
 
   const pingBackend = async () => {
     setStatus("Pinging backend...");
