@@ -6,6 +6,26 @@
   <title>Chessboard Classification</title>
   <link rel="icon" href="./static/images/favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="static/css/app.css" />
+  <style>
+    #boardGrid.rendered-board-container {
+      display: flex !important;
+      grid-template-columns: none !important;
+      align-items: center;
+      justify-content: center;
+      min-height: 320px;
+      padding: 12px;
+    }
+
+    #boardGrid .rendered-board-image {
+      display: block;
+      width: min(100%, 520px);
+      max-height: 70vh;
+      object-fit: contain;
+      border-radius: 14px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+      background: #fff;
+    }
+  </style>
 </head>
 <body>
   <div class="wrap">
@@ -77,11 +97,10 @@
             <div class="board-header">
               <h3>Rendered board</h3>
               <div class="legend">
-                <span><i class="legend-dot filled"></i> occupied</span>
-                <span><i class="legend-dot empty"></i> empty</span>
+                <span>Rendered by backend with python-chess</span>
               </div>
             </div>
-            <div id="boardGrid" class="board-grid" aria-label="Classified chess board"></div>
+            <div id="boardGrid" class="board-grid rendered-board-container" aria-label="Classified chess board image"></div>
           </div>
 
           <div class="raw-grid">
